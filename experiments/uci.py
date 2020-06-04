@@ -18,6 +18,7 @@ import utils
 
 from experiments import cutils
 from nde import distributions, flows, transforms
+from sys import exit
 
 parser = argparse.ArgumentParser()
 
@@ -266,7 +267,8 @@ else:
 timestamp = cutils.get_timestamp()
 if cutils.on_cluster():
     timestamp += '||{}'.format(os.environ['SLURM_JOB_ID'])
-log_dir = os.path.join(cutils.get_log_root(), args.dataset_name, timestamp)
+#log_dir = os.path.join(cutils.get_log_root(), args.dataset_name, timestamp)
+log_dir = os.path.join("./log/", args.dataset_name, timestamp)
 while True:
     try:
         writer = SummaryWriter(log_dir=log_dir, max_queue=20)
@@ -309,7 +311,9 @@ for step in tbar:
 
         if running_val_log_density > best_val_score:
             best_val_score = running_val_log_density
-            path = os.path.join(cutils.get_checkpoint_root(),
+            # path = os.path.join(cutils.get_checkpoint_root(),
+            #                     '{}-best-val-{}.t'.format(args.dataset_name, timestamp))
+            path = os.path.join("./output/",
                                 '{}-best-val-{}.t'.format(args.dataset_name, timestamp))
             torch.save(flow.state_dict(), path)
 
@@ -335,7 +339,9 @@ for step in tbar:
             writer.add_scalar(tag=summary, scalar_value=value, global_step=step)
 
 # load best val model
-path = os.path.join(cutils.get_checkpoint_root(),
+# path = os.path.join(cutils.get_checkpoint_root(),
+#                     '{}-best-val-{}.t'.format(args.dataset_name, timestamp))
+path = os.path.join("./output/",
                     '{}-best-val-{}.t'.format(args.dataset_name, timestamp))
 flow.load_state_dict(torch.load(path))
 flow.eval()

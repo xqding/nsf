@@ -17,6 +17,7 @@ import utils
 
 from experiments import cutils
 from nde import distributions, flows, transforms
+from sys import exit
 
 parser = argparse.ArgumentParser()
 
@@ -40,7 +41,7 @@ parser.add_argument('--num_bins', type=int, default=64,
 # optimization
 parser.add_argument('--learning_rate', default=5e-4,
                     help='Learning rate for Adam.')
-parser.add_argument('--num_training_steps', default=int(5e5),
+parser.add_argument('--num_training_steps', type = int, default=int(5e5),
                     help='Number of total training steps.')
 parser.add_argument('--grad_norm_clip_value', type=float, default=5.,
                     help='Value by which to clip grad norm.')
@@ -100,7 +101,7 @@ dim = 2
 distribution = distributions.StandardNormal((2,))
 
 args.base_transform_type = 'affine'
-
+args.base_transform_type = 'RQ'
 
 def create_base_transform(i):
     if args.base_transform_type == 'affine':
@@ -146,17 +147,18 @@ scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_training_st
 
 # create summary writer and write to log directory
 timestamp = cutils.get_timestamp()
-log_dir = os.path.join(cutils.get_log_root(), args.dataset_name, timestamp)
+#log_dir = os.path.join(cutils.get_log_root(), args.dataset_name, timestamp)
+log_dir = os.path.join("./log/", args.dataset_name, timestamp)
 writer = SummaryWriter(log_dir=log_dir)
 filename = os.path.join(log_dir, 'config.json')
 with open(filename, 'w') as file:
     json.dump(vars(args), file)
 
 tbar = tqdm(range(args.num_training_steps))
+exit()
 for step in tbar:
     flow.train()
     optimizer.zero_grad()
-    scheduler.step(step)
 
     batch = next(train_loader).to(device)
     log_density = flow.log_prob(batch)
@@ -165,7 +167,8 @@ for step in tbar:
     if args.grad_norm_clip_value is not None:
         clip_grad_norm_(flow.parameters(), args.grad_norm_clip_value)
     optimizer.step()
-
+    scheduler.step()
+    
     if (step + 1) % args.monitor_interval == 0:
         s = 'Loss: {:.4f}'.format(loss.item())
         tbar.set_description(s)
@@ -216,16 +219,21 @@ for step in tbar:
 
         plt.tight_layout()
 
-        path = os.path.join(cutils.get_output_root(), '{}.png'.format(args.dataset_name))
+#        path = os.path.join(cutils.get_output_root(), '{}.png'.format(args.dataset_name))
+        path = os.path.join("./output/", '{}.png'.format(args.dataset_name))        
         plt.savefig(path, dpi=300)
         writer.add_figure(tag='viz', figure=figure, global_step=step)
         plt.close()
 
     if (step + 1) % args.save_interval == 0:
-        path = os.path.join(cutils.get_checkpoint_root(),
-                            '{}.t'.format(args.dataset_name))
+        # path = os.path.join(cutils.get_checkpoint_root(),
+        #                     '{}.t'.format(args.dataset_name))
+        path = os.path.join("./output/",
+                            '{}.t'.format(args.dataset_name))        
         torch.save(flow.state_dict(), path)
 
-path = os.path.join(cutils.get_checkpoint_root(),
+# path = os.path.join(cutils.get_checkpoint_root(),
+#                     '{}-{}.t'.format(args.dataset_name, timestamp))
+path = os.path.join("./output/",
                     '{}-{}.t'.format(args.dataset_name, timestamp))
 torch.save(flow.state_dict(), path)
